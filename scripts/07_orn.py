@@ -32,7 +32,8 @@ ga_stadards_deviants = mne.grand_average(all_standards_deviants_list)
 ga_stadards_deviants.pick(ch_picks).plot()
 # %%
 # get p2 peak
-p2_peak = ga_stadards_deviants.get_peak(tmin=.1, tmax=.25, mode='pos')[1]
+p2_peak = ga_stadards_deviants.pick(ch_picks).get_peak(tmin=.1, tmax=.25, mode='pos')[1]
+p2_peak
 # %%
 # for each participant, jitter (j1-j7) and orn_standards and orn_deviants, calculate ORN amplitude +- 25 ms around p2 peak
 orn_window = (p2_peak-.025, p2_peak+.025)
@@ -43,3 +44,16 @@ orn_amplitude = orn_crop.data.mean() * 1e6
 # %%
 orn_amplitude
 # %%
+
+# for pandas:
+row = {
+    'pid': '3',
+    'jitter': 'j1',
+    'std_dev': 'std',
+    'orn_amp': .07312
+}
+rows_list = []
+orn_df = pd.DataFrame(rows_list)
+orn_df.to_csv('../results/orn_amps.csv')
+
+# next up: one-sample t-test
