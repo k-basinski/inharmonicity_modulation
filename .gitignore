@@ -1,3 +1,11 @@
 .DS_Store
 
 results/evokeds.p
+paradigms/eeg/soundpool_eeg/*
+paradigms/behavioral/demo/*
+paradigms/behavioral/logs/*
+paradigms/behavioral/soundpool/*
+paradigms/behavioral/soundpool2/*
+paradigms/behavioral/soundpool_behavioral/*
+
+
