@@ -1,0 +1,66 @@
+---
+title: "Prepare dataset"
+output: html_document
+---
+
+```{r include = FALSE}
+#setwd("analysis")
+```
+
+# Load the data
+
+```{r}
+#load data
+dane <- read.csv("../dane/mismatch_peaks.csv")
+# use only the first deviant
+dane <- dane[dane$mismatch == "mismatch_1", ]
+```
+
+# Info about entropy
+
+The following jitter rates were used in the behavioral experiment, created with `{python} np.concatenate([[0], np.geomspace(0.005, .5, 10)])`:
+[0.0, 0.005, 0.0083405 , 0.0139128 , 0.02320794, 0.03871318, 0.06457748, 0.10772173, 0.17969068, 0.29974213, 0.5]
+These values were used to create uniform distributions from which jitter factors used to generate inharmoic sounds were sampled. For each harmonic component of a sound the sampling distribution was a uniform: U(-jitter_rate, jitter_rate).
+
+Of note, jitter values > 0 can be translated into experimental conditions by: $(log10(jitter_value*2)+2)*(9/2)+1$.
+
+The differential entropy of the continuous uniform is $log(b-a)$, so in our case the entropy of the jitter is log(2*jitter) and entropies of the consecutive jitters are `np.log(np.geomspace(0.01, 1, 10))`:  [0.01      , 0.01668101, 0.02782559, 0.04641589, 0.07742637, 0.12915497, 0.21544347, 0.35938137, 0.59948425, 1.]. Only the first seven jitters from the geometric space were used (based on the behavioral experiment).
+
+jitter — name of the experimental condition
+jitter_no — name of the experimental condition as an int, also `(log10(jitter_value * 2) + 2) * (9/2) + 1` for jitter_value > 0.
+jitter_value — value used to get the support of the jittered component distribution.
+jitter_value_log10 — log_10 of jitter_value
+
+jitter_support — width of the support of the uniform distribution used to get jitter factors.
+jitter_support_log10 — entropy of the distribution used to get jitter factors.
+
+```{r}
+jitters_names <- sort(unique(dane$jitter))
+
+# add true jitter values - kept just for checks, I am using jitter support anyway
+true_jitters <- c(0.0, 0.005, 0.0083405 , 0.0139128 , 0.02320794, 0.03871318, 0.06457748, 0.10772173, 0.17969068, 0.29974213, 0.5)[1:8]
+names(true_jitters) <- jitters_names
+dane$jitter_value <- true_jitters[dane$jitter]
+dane$jitter_value_log10 <- log10(dane$jitter_value)
+
+# add jitter support values
+jitter_supports <- c(0.0, 0.01, 0.01668101, 0.02782559, 0.04641589, 0.07742637, 0.12915497, 0.21544347, 0.35938137, 0.59948425, 1.)[1:8]
+names(jitter_supports) <- jitters_names
+dane$jitter_support <- jitter_supports[dane$jitter]
+dane$jitter_support_log10 <- log10(dane$jitter_support)
+
+table(dane$jitter)
+summary(dane)
+```
+
+
+# Save datasets
+
+```{r}
+write.csv(dane, "analysis_dataset.csv")
+```
+
+```{r include = FALSE}
+# go back to project's root dir
+# setwd("..")
+```

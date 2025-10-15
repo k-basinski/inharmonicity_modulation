@@ -1,0 +1,324 @@
+---
+title: "MMN amplitude"
+output: html_document
+---
+
+```{r echo = FALSE}
+# create dir to save output
+ifelse(!dir.exists(file.path("output/mmn_amp")),
+        {
+          dir.create(file.path("output/mmn_amp"))
+          print("results will be saved in output/mmn_amp")
+        },
+        "Dir exists, if you continue, its contents will be overwritten!")
+
+setwd("analysis")
+
+#load packages
+library(nlme)
+library(ez)
+#library(nlraa)
+
+#load data
+dane <- read.csv("analysis_dataset.csv")
+```
+
+
+# MMN amplitude - contrasts with 0 VALUE
+
+```{r}
+jitters_names <- sort(unique(dane$jitter))
+# df to store t_test results
+t_tests_v0 <- data.frame()
+#names(t_tests_v0) <- c("p_raw", "t", "df", "mean", "ci_lower", "ci_upper", "alternative")
+for (j in jitters_names) {
+  selected_data <- dane[dane$jitter == j, ]
+  t_test <- t.test(selected_data$mmn_amp, mu=0, alternative = "two.sided")
+  this_results <- data.frame(condition = j,
+                             p_raw = t_test$p.value,
+                             t = t_test$statistic,
+                             df = t_test$parameter,
+                             mean = t_test$estimate,
+                             ci95_lower = t_test$conf.int[1],
+                             ci95_upper = t_test$conf.int[2],
+                             method = t_test$method,
+                             alternative = t_test$alternative
+  )
+
+  t_tests_v0 <- rbind(t_tests_v0, this_results)
+}
+
+t_tests_v0$p_adj_fdr <- p.adjust(t_tests_v0$p_raw, method = "fdr")
+arranged_names <- c("condition",
+                    "p_raw",
+                    "p_adj_fdr",
+                    names(t_tests_v0)[!names(t_tests_v0) %in% c("condition", "p_raw", "p_adj_fdr")]
+)
+t_tests_v0 <- t_tests_v0[ , arranged_names]
+print(t_tests_v0)
+
+# save results
+file_connection <- file("../output/mmn_amp/01_one_way_t_amp_vs_0.txt", open = "w+")
+writeLines("ONE SAMPLE T-TEST TO CHECK WHETHER MMN AMPLITUDES DIFFER FROM ZERO\n", file_connection)
+write.csv(t_tests_v0, file_connection, append = TRUE)
+close(file_connection)
+```
+
+
+# Anova
+
+```{r}
+(anova_results <- ezANOVA(dane,
+        dv = mmn_amp,
+        wid = pid,
+        within = jitter,
+        detailed = TRUE,
+        return_aov = TRUE
+))
+
+# save results
+file_connection <- file("../output/mmn_amp/02_anova_jitter_as_factor.txt", open = "w+")
+writeLines("REPEATED MEASURES ANOVA TO CHECK WHETER MMN AMPLITUDES DIFFER SIGNIFICANTLY BETWEEN HARMONICITY CONDIONS\n", file_connection)
+out <- capture.output(print(anova_results))
+writeLines(out, file_connection)
+close(file_connection)
+```
+
+# MMN amplitude - pairwise contrasts with condition jitter 0
+
+Here we check whether MMN amplitude in a condition with no jitter differs from any jittered conditions.
+
+```{r}
+jitters_names <- sort(unique(dane$jitter))
+# df to store t_test results
+t_tests_cond0 <- data.frame()
+for (j in jitters_names[2:8]) {
+  data_x <- dane[dane$jitter == j, "mmn_amp"]
+  data_y <- dane[dane$jitter == "j0", "mmn_amp"]
+  t_test <- t.test(data_x, data_y, paired = TRUE, alternative = "two.sided")
+  this_results <- data.frame(condition = j,
+                             p_raw = t_test$p.value,
+                             t = t_test$statistic,
+                             df = t_test$parameter,
+                             mean_jx = mean(data_x),
+                             mean_j0 = mean(data_y),
+                             mean_diff = t_test$estimate,
+                             ci95_lower = t_test$conf.int[1],
+                             ci95_upper = t_test$conf.int[2],
+                             method = t_test$method,
+                             alternative = t_test$alternative
+  )
+
+  t_tests_cond0 <- rbind(t_tests_cond0, this_results)
+}
+
+t_tests_cond0$p_adj_fdr <- p.adjust(t_tests_cond0$p_raw, method = "fdr")
+arranged_names <- c("condition",
+                    "p_raw",
+                    "p_adj_fdr",
+                    names(t_tests_cond0)[!names(t_tests_cond0) %in% c("condition", "p_raw", "p_adj_fdr")]
+)
+t_tests_cond0 <- t_tests_cond0[ , arranged_names]
+print(t_tests_cond0)
+```
+
+
+# Create dataset for modelling
+
+```{r}
+dane_excl0 <- dane[dane$jitter_no>0, ]
+table(dane_excl0$jitter)
+```
+
+# MMN amplitude - null model
+
+
+```{r}
+mmn_amp_null_m <- lme(mmn_amp ~ 1,
+                       data = dane_excl0,
+                       random = ~1 | pid,
+                      method = "ML"
+)
+summary(mmn_amp_null_m)
+```
+
+# MMN amplitude - linear model
+
+```{r}
+mmn_amp_line_m <- lme(mmn_amp ~ poly(jitter_support_log10, 1),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(mmn_amp_line_m)
+```
+
+
+# MMN amplitude - quadratic model
+
+```{r}
+mmn_amp_quad_m <- lme(mmn_amp ~ poly(jitter_support_log10, 2),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(mmn_amp_quad_m)
+```
+
+
+# MMN amplitude - qubic model
+
+```{r}
+mmn_amp_qube_m <- lme(mmn_amp ~ poly(jitter_support_log10, 3),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(mmn_amp_qube_m)
+```
+
+# MMN amplitude - pow4 model
+
+```{r}
+mmn_amp_pow4_m <- lme(mmn_amp ~ poly(jitter_support_log10, 4),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(mmn_amp_pow4_m)
+```
+
+# MMN_amp model comparison - polynomial
+
+```{r}
+anova(mmn_amp_null_m, mmn_amp_line_m, mmn_amp_quad_m, mmn_amp_qube_m, mmn_amp_pow4_m)
+```
+
+# MMN_amp sigmoid model
+
+Our hypothesis stated that the MMN amplitude can be modelled as a sigmoid function of the entropy of jittering factors distribution, i.e. MMN amplitude will stay similar for lower entropies and relatively harmonic sounds, and then after reaching some threshold it will rapidly approach zero. To fit the model we used sigmoid function SSlogis
+
+The model was fitted only for inharmonic conditions (i.e. jitter > 0).
+
+Starting values were determined by inspection of the average values of mmn amplitudes in each condition.
+
+```{r}
+start <- c(Asym=-1.48, xmid=-1.2, scale=-1/6.5)
+# fit a model with least squares ignoring grouping
+simple_nls <- nls(mmn_amp ~ SSlogis(jitter_support_log10, Asym, xmid, scale),
+                        start = start,
+                        data = dane_excl0)
+
+summary(simple_nls)
+```
+
+```{r}
+boxplot(residuals(simple_nls) ~ dane_excl0$pid)
+```
+
+
+```{r}
+#fit separate model for each person
+# simple_nls_parameters <-summary(simple_nls)$parameters
+# start_from_nls <- c(Asym = simple_nls_parameters[1,1],
+#                        xmid = simple_nls_parameters[2,1],
+#                        scale = simple_nls_parameters[3,1])
+list_nls <- nlsList(mmn_amp ~ SSlogis(jitter_support_log10, Asym, xmid, scale) | pid,
+                    data = dane_excl0,
+                    start=start)
+
+list_nls
+```
+
+```{r}
+non_empty_nls_list <- !is.na(intervals(list_nls)[, "lower", "Asym"])
+
+asymptotes <- intervals(list_nls)[non_empty_nls_list, , "Asym"]
+scales <- intervals(list_nls)[non_empty_nls_list, , "scale"]
+xmids <- intervals(list_nls)[non_empty_nls_list, , "xmid"]
+lattice::dotplot(scales)
+```
+
+
+The fit shows that the variance for xmid and scale is so miniscule, that it makes sense to keep only random Asym.
+```{r}
+start <- c(Asym=-1.48, xmid=-1.2, scale=-1/6.5)
+mmn_amp_sigmoid_all_random <- nlme(mmn_amp ~ SSlogis(jitter_support_log10, Asym, xmid, scale),
+                               data = dane_excl0,
+                               fixed = Asym + xmid + scale ~ 1,
+                               random = pdDiag(Asym + xmid + scale ~ 1),
+                               start = start,
+                                groups = ~ pid)
+
+summary(mmn_amp_sigmoid_all_random)
+```
+
+
+```{r}
+mmn_amp_sigmoid <- nlme(mmn_amp ~ SSlogis(jitter_support_log10, Asym, xmid, scale),
+                        data = dane_excl0,
+                        fixed = Asym + xmid + scale ~ 1,
+                        random = Asym ~ 1,
+                        groups = ~ pid,
+                        start = start,
+                        control = nlmeControl(msVerbose = TRUE)
+)
+
+summary(mmn_amp_sigmoid)
+```
+
+
+
+
+
+```{r}
+anova(mmn_amp_sigmoid, mmn_amp_sigmoid_all_random)
+```
+
+```{r}
+plot(mmn_amp_sigmoid)
+```
+```{r}
+qqnorm(mmn_amp_sigmoid)
+```
+```{r}
+plot(dane_excl0$jitter_support_log10, residuals(mmn_amp_sigmoid))
+```
+
+# compare with null model
+
+This results should not be reported, LRT is not valid for non-nested models!
+
+```{r}
+anova(mmn_amp_null_m, mmn_amp_line_m)
+```
+
+These are nested - null is sigmoid with scale = 1 and
+
+```{r}
+anova(mmn_amp_null_m, mmn_amp_sigmoid)
+```
+
+The models are non nested but likelihood ratio distribution should converge to chi-square distribution scaled by some os the parameters by Vuong. We do not know hjow fast the distribution converges, because we do not know wheter any of the models is correctly specified.
+
+# Use bootstrap to get nice plots
+
+```{r}
+# models <- 0
+# for (i in 1:100) {
+#     tryCatch({
+#       sim_data <- simulate_nlme(mmn_amp_sigmoid, psim = 2, value = "data.frame")
+#       sim_mmn_amp_sigmoid <- nlme(mmn_amp ~ SSlogis(sim.y, Asym, xmid, scale),
+#                                data = sim_data,
+#                                fixed = Asym + xmid + scale ~ 1,
+#                                random = Asym ~ 1|pid,
+#                                   start = start,
+#         control = nlmeControl(maxIter = 100))
+#     models <- models + 1
+#     print(models)},
+#       warning = function(w) {print(w)},
+#       error = function(e) {print(e)},
+#       finally = {})
+# }
+
+```

@@ -1,0 +1,271 @@
+---
+title: "P3 amplitude"
+output: html_document
+---
+
+```{r include = FALSE}
+# clear old outputs
+if(dir.exists(file.path("../output/p3_amp"))) {
+       unlink("../output/p3_amp", recursive = TRUE)
+}
+
+output_dir <- file.path("../output/p3_amp")
+dir.create(output_dir)
+nice_tables_file <- paste0(output_dir, "/nice_tables.md")
+
+#load packages
+library(nlme)
+library(ez)
+
+#load data
+dane <- read.csv("analysis_dataset.csv")
+
+source("convenience_functions.R")
+```
+
+
+# P3 amplitude - contrasts with 0 VALUE
+
+```{r}
+jitters_names <- sort(unique(dane$jitter))
+# df to store t_test results
+t_tests_v0 <- data.frame()
+for (j in jitters_names) {
+  selected_data <- dane[dane$jitter == j, ]
+  t_test <- t.test(selected_data$p3_amp, mu=0, alternative = "two.sided")
+  this_results <- data.frame(condition = j,
+                             p_raw = t_test$p.value,
+                             t = t_test$statistic,
+                             df = t_test$parameter,
+                             mean = t_test$estimate,
+                             ci95_lower = t_test$conf.int[1],
+                             ci95_upper = t_test$conf.int[2],
+                             method = t_test$method,
+                             alternative = t_test$alternative
+  )
+
+  t_tests_v0 <- rbind(t_tests_v0, this_results)
+}
+
+t_tests_v0$p_adj_fdr <- p.adjust(t_tests_v0$p_raw, method = "fdr")
+arranged_names <- c("condition",
+                    "p_raw",
+                    "p_adj_fdr",
+                    names(t_tests_v0)[!names(t_tests_v0) %in% c("condition", "p_raw", "p_adj_fdr")]
+)
+t_tests_v0 <- t_tests_v0[ , arranged_names]
+print(t_tests_v0)
+```
+
+```{r include = FALSE}
+# save output
+t_tests_v0 <- table_rounding(t_tests_v0)
+t_tests_v0[["M_95CI"]] <- paste0(t_tests_v0[["mean"]], "[", t_tests_v0[["ci95_lower"]], ", ", t_tests_v0[["ci95_upper"]], "]")
+t_tests_v0 <- t_tests_v0[,c("condition", "M_95CI", "t", "df", "p_raw", "p_adj_fdr")]
+write_to_nice_tables(t_tests_v0, nice_tables_file, "T-tests - contrasts with 0 value")
+```
+
+# Anova
+
+```{r}
+(anova_results <- ezANOVA(dane,
+        dv = p3_amp,
+        wid = pid,
+        within = jitter,
+        detailed = TRUE,
+        return_aov = TRUE
+))
+```
+
+
+```{r include = FALSE}
+# save output
+file_connection <- file(paste0(output_dir, "/ANOVA.txt"), open = "w+")
+writeLines("REPEATED MEASURES ANOVA TO CHECK WHETER P3 AMPLITUDES DIFFER SIGNIFICANTLY BETWEEN HARMONICITY CONDIONS", file_connection)
+out <- capture.output(print(anova_results))
+writeLines(out, file_connection)
+close(file_connection)
+
+for(nm in names(anova_results)[1:3]) {
+  filename <- paste0(output_dir, "/ANOVA_", nm, ".csv")
+  rounded <- table_rounding(anova_results[[nm]])
+  write_to_nice_tables(rounded, nice_tables_file, paste0("ANOVA ", nm))
+}
+```
+
+# P3 amplitude - pairwise contrasts with condition jitter 0
+
+Here we check whether P3 amplitude in condition with no jitter differs from any jittered condtions.
+
+```{r}
+jitters_names <- sort(unique(dane$jitter))
+# df to store t_test results
+t_tests_cond0 <- data.frame()
+for (j in jitters_names[2:8]) {
+  data_x <- dane[dane$jitter == j, "p3_amp"]
+  data_y <- dane[dane$jitter == "j0", "p3_amp"]
+  t_test <- t.test(data_x, data_y, paired = TRUE, alternative = "two.sided")
+  this_results <- data.frame(condition = j,
+                             p_raw = t_test$p.value,
+                             t = t_test$statistic,
+                             df = t_test$parameter,
+                             mean_jx = mean(data_x),
+                             mean_j0 = mean(data_y),
+                             mean_diff = t_test$estimate,
+                             ci95_lower = t_test$conf.int[1],
+                             ci95_upper = t_test$conf.int[2],
+                             method = t_test$method,
+                             alternative = t_test$alternative
+  )
+
+  t_tests_cond0 <- rbind(t_tests_cond0, this_results)
+}
+
+t_tests_cond0$p_adj_fdr <- p.adjust(t_tests_cond0$p_raw, method = "fdr")
+arranged_names <- c("condition",
+                    "p_raw",
+                    "p_adj_fdr",
+                    names(t_tests_cond0)[!names(t_tests_cond0) %in% c("condition", "p_raw", "p_adj_fdr")]
+)
+t_tests_cond0 <- t_tests_cond0[ , arranged_names]
+print(t_tests_cond0)
+```
+
+```{r include = FALSE}
+# save output
+# save output
+t_tests_cond0 <- table_rounding(t_tests_cond0)
+t_tests_cond0[["M_95CI"]] <- paste0(t_tests_cond0[["mean"]], "[", t_tests_cond0[["ci95_lower"]], ", ", t_tests_cond0[["ci95_upper"]], "]")
+t_tests_cond0 <- t_tests_cond0[,c("condition", "M_95CI", "t", "df", "p_raw", "p_adj_fdr")]
+write_to_nice_tables(t_tests_cond0, nice_tables_file, "T-tests comparisons with condition j0")
+```
+
+# Create dataset for modelling
+
+```{r}
+dane_excl0 <- dane[dane$jitter_no>0, ]
+table(dane_excl0$jitter)
+```
+
+# P3 amplitude - null model
+
+
+```{r}
+p3_amp_null_m <- lme(p3_amp ~ 1,
+                       data = dane_excl0,
+                       random = ~1 | pid,
+                      method = "ML"
+)
+summary(p3_amp_null_m)
+```
+
+```{r include = FALSE}
+save_mixed_model(summary(p3_amp_null_m), "00_null_model", output_dir, nice_tables_file)
+```
+
+
+
+# P3 amplitude - linear model
+
+```{r}
+p3_amp_line_m <- lme(p3_amp ~ poly(jitter_support_log10, 1),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(p3_amp_line_m)
+```
+
+```{r include = FALSE}
+save_mixed_model(summary(p3_amp_line_m), "01_linear_model", output_dir, nice_tables_file)
+```
+
+# P3 amplitude - quadratic model
+
+```{r}
+p3_amp_quad_m <- lme(p3_amp ~ poly(jitter_support_log10, 2),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(p3_amp_quad_m)
+```
+
+```{r include = FALSE}
+save_mixed_model(summary(p3_amp_quad_m), "02_quadratic_model", output_dir, nice_tables_file)
+```
+
+# P3 amplitude - qubic model
+
+```{r}
+p3_amp_qube_m <- lme(p3_amp ~ poly(jitter_support_log10, 3),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(p3_amp_qube_m)
+```
+
+```{r include = FALSE}
+save_mixed_model(summary(p3_amp_qube_m), "03_qube_model", output_dir, nice_tables_file)
+```
+
+
+
+# P3 amplitude - pow4 model
+
+```{r}
+p3_amp_pow4_m <- lme(p3_amp ~ poly(jitter_support_log10, 4),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(p3_amp_pow4_m)
+```
+
+```{r include = FALSE}
+save_mixed_model(summary(p3_amp_pow4_m), "04_pow4_model", output_dir, nice_tables_file)
+```
+
+# Predict with P3 amp quad model
+
+Since quad is the best model for predicting p3 amplitude, let's try and predict some values with it. We're next going to drop it into csv for plotting in matplotlib.
+
+```{r}
+# setup jitter values for predictions
+jitter_vector <- seq(-2, -.6, .001)
+
+# generate df of input used for predictions
+predict_df <- data.frame(
+  jitter_support_log10 = rep(jitter_vector, 35),
+  pid = rep(seq(0, 34), each = length(jitter_vector))
+)
+model_predictions <- predict(p3_amp_quad_m, predict_df)
+predicted_df <- data.frame(
+  jitter_support_log10 = rep(jitter_vector, 35),
+  pid = rep(seq(0, 34), each = length(jitter_vector)),
+  y = model_predictions
+)
+write.csv(predicted_df, file = "../output/p3_amp/model_predictions.csv")
+```
+
+
+# MMN_amp model comparison - polynomial
+
+```{r}
+(aov_table_poly <- anova(p3_amp_null_m, p3_amp_line_m, p3_amp_quad_m, p3_amp_qube_m, p3_amp_pow4_m))
+```
+
+```{r include = FALSE}
+aov_table_poly <- table_rounding(aov_table_poly)
+write_to_nice_tables(aov_table_poly, nice_tables_file, "poly_model_comparison")
+```
+
+```{r}
+(aov_table_quad <- anova(p3_amp_null_m, p3_amp_quad_m))
+```
+
+```{r include = FALSE}
+#(aov_table_quad <- table_rounding(aov_table_quad))
+#write_to_nice_tables(aov_table_quad, nice_tables_file, "null_Vs_quadratric_comparison")
+```

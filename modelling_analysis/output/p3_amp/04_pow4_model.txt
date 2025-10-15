@@ -1,0 +1,36 @@
+NULL MODEL
+
+AIC: 714.618224019385
+BIC: 739.127031493198
+Loglik: -350.309112009693
+
+Linear mixed-effects model fit by maximum likelihood
+  Data: dane_excl0 
+
+Random effects:
+ Formula: ~1 | pid
+        (Intercept)  Residual
+StdDev:   0.4633196 0.9418686
+
+Fixed effects:  p3_amp ~ poly(jitter_support_log10, 4) 
+ Correlation: 
+                               (Intr) p(__10,4)1 p(__10,4)2 p(__10,4)3
+poly(jitter_support_log10, 4)1 0                                      
+poly(jitter_support_log10, 4)2 0      0                               
+poly(jitter_support_log10, 4)3 0      0          0                    
+poly(jitter_support_log10, 4)4 0      0          0          0         
+
+Standardized Within-Group Residuals:
+       Min         Q1        Med         Q3        Max 
+-4.0644682 -0.5061442 -0.1014934  0.5337722  3.1048792 
+
+Number of Observations: 245
+Number of Groups: 35 
+
+Fixed effects
+"","Value","Std.Error","DF","t-value","p-value"
+"(Intercept)",0.76,0.1,206,7.6,"<.001"
+"poly(jitter_support_log10, 4)1",-0.95,0.95,206,-1,"0.319"
+"poly(jitter_support_log10, 4)2",-2.33,0.95,206,-2.45,"0.015"
+"poly(jitter_support_log10, 4)3",1.6,0.95,206,1.69,"0.093"
+"poly(jitter_support_log10, 4)4",0.04,0.95,206,0.04,"0.967"

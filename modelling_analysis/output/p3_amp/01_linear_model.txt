@@ -1,0 +1,30 @@
+NULL MODEL
+
+AIC: 717.456365933723
+BIC: 731.461398775902
+Loglik: -354.728182966861
+
+Linear mixed-effects model fit by maximum likelihood
+  Data: dane_excl0 
+
+Random effects:
+ Formula: ~1 | pid
+        (Intercept)  Residual
+StdDev:   0.4573988 0.9618994
+
+Fixed effects:  p3_amp ~ poly(jitter_support_log10, 1) 
+ Correlation: 
+                              (Intr)
+poly(jitter_support_log10, 1) 0     
+
+Standardized Within-Group Residuals:
+       Min         Q1        Med         Q3        Max 
+-4.0952689 -0.5983385 -0.0442009  0.5963903  3.2935933 
+
+Number of Observations: 245
+Number of Groups: 35 
+
+Fixed effects
+"","Value","Std.Error","DF","t-value","p-value"
+"(Intercept)",0.76,0.1,209,7.65,"<.001"
+"poly(jitter_support_log10, 1)",-0.95,0.97,209,-0.98,"0.326"

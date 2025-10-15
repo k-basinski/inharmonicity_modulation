@@ -1,0 +1,193 @@
+---
+title: "MMN latency"
+output: html_document
+---
+
+```{r include = FALSE}
+# clear old outputs
+if(dir.exists(file.path("../output/mmn_latency"))) {
+       unlink("../output/mmn_latency", recursive = TRUE)
+}
+
+output_dir <- file.path("../output/mmn_latency")
+dir.create(output_dir)
+nice_tables_file <- paste0(output_dir, "/nice_tables.md")
+
+#load packages
+library(nlme)
+library(ez)
+
+#load data
+dane <- read.csv("analysis_dataset.csv")
+
+source("convenience_functions.R")
+```
+
+
+# Anova
+
+```{r}
+anova_results <- ezANOVA(dane,
+        dv = mmn_lat,
+        wid = pid,
+        within = jitter,
+        detailed = TRUE,
+        return_aov = TRUE
+)
+```
+
+```{r include = FALSE}
+# save output
+file_connection <- file(paste0(output_dir, "/ANOVA.txt"), open = "w+")
+writeLines("REPEATED MEASURES ANOVA TO CHECK WHETER MMN LATENCIES DIFFER SIGNIFICANTLY BETWEEN HARMONICITY CONDIONS", file_connection)
+out <- capture.output(print(anova_results))
+writeLines(out, file_connection)
+close(file_connection)
+
+for(nm in names(anova_results)[1:3]) {
+  filename <- paste0(output_dir, "/ANOVA_", nm, ".csv")
+  rounded <- table_rounding(anova_results[[nm]])
+  write_to_nice_tables(rounded, nice_tables_file, paste0("ANOVA ", nm))
+}
+```
+
+# MMN latency - pairwise contrasts with condition jitter 0
+
+Here we check whether MMN latency in condition with no jitter differs from any jittered condtions.
+
+```{r}
+jitters_names <- sort(unique(dane$jitter))
+# df to store t_test results
+t_tests_v0 <- data.frame()
+for (j in jitters_names[2:8]) {
+  data_x <- dane[dane$jitter == j, "mmn_lat"]
+  data_y <- dane[dane$jitter == "j0", "mmn_lat"]
+  t_test <- t.test(data_x, data_y, paired = TRUE, alternative = "two.sided")
+  this_results <- data.frame(condition = j,
+                             p_raw = t_test$p.value,
+                             t = t_test$statistic,
+                             df = t_test$parameter,
+                             mean_jx = mean(data_x),
+                             mean_j0 = mean(data_y),
+                             mean_diff = t_test$estimate,
+                             ci95_lower = t_test$conf.int[1],
+                             ci95_upper = t_test$conf.int[2],
+                             method = t_test$method,
+                             alternative = t_test$alternative
+  )
+
+  t_tests_v0 <- rbind(t_tests_v0, this_results)
+}
+
+t_tests_v0$p_adj_fdr <- p.adjust(t_tests_v0$p_raw, method = "fdr")
+arranged_names <- c("condition",
+                    "p_raw",
+                    "p_adj_fdr",
+                    names(t_tests_v0)[!names(t_tests_v0) %in% c("condition", "p_raw", "p_adj_fdr")]
+)
+t_tests_v0 <- t_tests_v0[ , arranged_names]
+print(t_tests_v0)
+```
+
+
+```{r include = FALSE}
+# save output
+t_tests_cond0 <- table_rounding(t_tests_cond0)
+t_tests_cond0[["M_95CI"]] <- paste0(t_tests_cond0[["mean"]], "[", t_tests_cond0[["ci95_lower"]], ", ", t_tests_cond0[["ci95_upper"]], "]")
+t_tests_cond0 <- t_tests_cond0[,c("condition", "M_95CI", "t", "df", "p_raw", "p_adj_fdr")]
+write_to_nice_tables(t_tests_cond0, nice_tables_file, "T-tests comparisons with condition j0")
+```
+
+# Create dataset for modelling
+
+```{r}
+dane_excl0 <- dane[dane$jitter_no>0, ]
+table(dane_excl0$jitter)
+```
+
+# MMN latency - null model
+
+
+```{r}
+mmn_lat_null_m <- lme(mmn_lat ~ 1,
+                       data = dane_excl0,
+                       random = ~1 | pid,
+                      method = "ML"
+)
+summary(mmn_lat_null_m)
+```
+
+```{r include = FALSE}
+save_mixed_model(summary(mmn_lat_null_m), "00_null_model", output_dir, nice_tables_file)
+```
+
+# MMN latency - linear model
+
+```{r}
+mmn_lat_line_m <- lme(mmn_lat ~ poly(jitter_support_log10, 1),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(mmn_lat_line_m)
+```
+
+```{r include = FALSE}
+save_mixed_model(summary(mmn_lat_line_m), "01_linear_model", output_dir, nice_tables_file)
+```
+
+# MMN latency - quadratic model
+
+```{r}
+mmn_lat_quad_m <- lme(mmn_lat ~ poly(jitter_support_log10, 2),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(mmn_lat_quad_m)
+```
+
+```{r include = FALSE}
+save_mixed_model(summary(mmn_lat_quad_m), "02_quadratic_model", output_dir, nice_tables_file)
+```
+
+# MMN latency - qubic model
+
+```{r}
+mmn_lat_qube_m <- lme(mmn_lat ~ poly(jitter_support_log10, 3),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(mmn_lat_qube_m)
+```
+
+```{r include = FALSE}
+save_mixed_model(summary(mmn_lat_qube_m), "03_qube_model", output_dir, nice_tables_file)
+```
+
+# MMN latency - pow4 model
+
+```{r}
+mmn_lat_pow4_m <- lme(mmn_lat ~ poly(jitter_support_log10, 4),
+                      dane_excl0,
+                      random = ~1 | pid,
+                      method = "ML")
+
+summary(mmn_lat_pow4_m)
+```
+
+```{r include = FALSE}
+save_mixed_model(summary(mmn_lat_pow4_m), "04_pow4_model", output_dir, nice_tables_file)
+```
+
+# MMN_amp model comparison - polynomial
+
+```{r}
+(aov_table_poly <- anova(mmn_lat_null_m, mmn_lat_line_m, mmn_lat_quad_m, mmn_lat_qube_m, mmn_lat_pow4_m))
+```
+
+```{r include = FALSE}
+aov_table_poly <- table_rounding(aov_table_poly)
+write_to_nice_tables(aov_table_poly, nice_tables_file, "poly_model_comparison")
+```

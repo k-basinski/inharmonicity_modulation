@@ -1,0 +1,40 @@
+REPEATED MEASURES ANOVA TO CHECK WHETER P3 AMPLITUDES DIFFER SIGNIFICANTLY BETWEEN HARMONICITY CONDIONS
+$ANOVA
+       Effect DFn DFd       SSn      SSd         F            p p<.05        ges
+1 (Intercept)   1  34 170.45684 106.2544 54.543936 1.460224e-08     * 0.35241541
+2      jitter   7 238  10.80918 206.9703  1.775675 9.286520e-02       0.03335818
+
+$`Mauchly's Test for Sphericity`
+  Effect         W         p p<.05
+2 jitter 0.3677201 0.2561442      
+
+$`Sphericity Corrections`
+  Effect       GGe     p[GG] p[GG]<.05       HFe      p[HF] p[HF]<.05
+2 jitter 0.7876889 0.1125038           0.9577766 0.09644549          
+
+$aov
+
+Call:
+aov(formula = formula(aov_formula), data = data)
+
+Grand Mean: 0.78024
+
+Stratum 1: pid
+
+Terms:
+                Residuals
+Sum of Squares   106.2544
+Deg. of Freedom        34
+
+Residual standard error: 1.767803
+
+Stratum 2: pid:jitter
+
+Terms:
+                   jitter Residuals
+Sum of Squares   10.80918 206.97035
+Deg. of Freedom         7       238
+
+Residual standard error: 0.932536
+Estimated effects may be unbalanced
+
