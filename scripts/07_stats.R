@@ -5,7 +5,7 @@ library(lmerTest)
 library(emmeans)
 library(broom)
 
-df_all <- read_csv("results/csv/mismatch_peaks.csv")
+df_all <- read_csv("../results/csv/mismatch_peaks.csv")
 
 # select just mismatch 1
 dm1 <- df_all %>% filter(mismatch == "mismatch_1" )
@@ -36,10 +36,13 @@ for (dv in dvs) {
     m4 <- lmer(f4, data = dm1)
     log_like_test <- anova(m0, m1, m2, m3, m4, refit = TRUE)
     print(log_like_test)
-    fname <- paste("results/csv/",dv ,"_loglikelihood.csv", sep="")
+    fname <- paste("../results/csv/",dv ,"_loglikelihood.csv", sep="")
     log_like_test %>% broom::tidy() %>% write_csv(fname)
+    
+    
+
 }
-lmer(f0, data = dm1)
+
 
 # now factors
 
@@ -63,3 +66,9 @@ for (dv in dvs) {
 
     log_like_test %>% broom::tidy() %>% write_csv(fname)
 }
+
+
+# Descriptive statistics
+dm1 %>% 
+    summarize(mmn_amp_mean = mean(mmn_amp), mmn_amp_sd = sd(mmn_amp)) %>% 
+    print()

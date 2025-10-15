@@ -71,7 +71,7 @@ axs[1][1].set_ylabel("P3 latency (s)")
 
 fig.tight_layout()
 
-plt.savefig('../results/figures/fig3.png', dpi=300)
+plt.savefig('../results/figures/fig4.png', dpi=300)
 plt.show()
 
 # %%
