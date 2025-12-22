@@ -41,10 +41,9 @@ class Logger:
 
 class Paradigm:
     config = {
-        "send_triggers": False,  # turn on/off sending triggers via serial port
+        "send_triggers": True,  # turn on/off sending triggers via serial port
         "soundpool_path": "soundpool_eeg/",
-        "ioi": 0.6,  # inter-onset-interval in seconds
-        "sounds_per_block": 20,  # how many sounds to play per block
+        "sounds_per_block": 600,  # how many sounds to play per block
         "frequencies": list(range(200, 550, 50)),  # which frequencies to probe
         "sp_max_index": 1000,  # max index of audio files in sound pool
         "deviant_probability": 0.2,  # probability of deviant
@@ -56,8 +55,11 @@ class Paradigm:
     # default random number generator
     rng = np.random.default_rng()
 
-    # blocks to run
-    blocks = list(range(11))
+    # blocks to run (if you want specific jitter like j2 or j4, use 2 and 4 as block index)
+    blocks = [0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7]
+    
+    #blocks = [0, 1, 2, 3, 4, 5, 7, 2, 5]
+    
     rng.shuffle(blocks)
     current_block = None
 
