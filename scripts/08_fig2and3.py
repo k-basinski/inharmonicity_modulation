@@ -43,6 +43,7 @@ def plot_erps(jitter, conds, ax):
         ylim=dict(eeg=(-3, 3)),
     )
     ax.set_title(titles[jitter])
+    ax.set_ylabel("Voltage (µV)")
 
     if jitter != "j10":
         ax.set_xlabel(None)
@@ -51,7 +52,7 @@ def plot_erps(jitter, conds, ax):
 def plot_topomaps(jitter, ax):
     vlims = (-1.5, 1.5)
     ga = mne.grand_average(ev[jitter]["mismatch_1"])
-    ga.plot_topomap(times=topo_times, axes=ax, time_unit="ms", vlim=vlims, show=False)
+    ga.plot_topomap(times=topo_times, axes=ax, time_unit="s", vlim=vlims, show=False)
 
 
 fig, axs = plt.subplots(
@@ -64,6 +65,8 @@ fig, axs = plt.subplots(
 for i, jitter in enumerate(jitters):
     plot_erps(jitter, ["std", "dev_1", "mismatch_1"], axs[i, 0])
     plot_topomaps(jitter, axs[i, 1:])
+    if i == 7:
+        axs[i,0].set_xlabel("Time (s)")
 
 plt.tight_layout()
 
@@ -85,17 +88,26 @@ plt.show()
 
 d = {titles[jit]: ev[jit]["mismatch_1"] for jit in jitters}
 
+ax = plt.subplot()
 mne.viz.plot_compare_evokeds(
     d,
     picks=ch_picks,
     combine="mean",
-    show_sensors=True,
+    show_sensors='upper right',
     ci=False,
     cmap='viridis',
     title="",
     show=False,
-    ylim=dict(eeg=(-1.5, 1.5)),
+    ylim=dict(eeg=(-1.7, 1.4)),
+    axes=ax,
+
 )
+ax.hlines(-1.45, xmin=.07, xmax=.25, )
+ax.annotate("MMN range", xy=(.11, -1.58))
+ax.hlines(1.05, xmin=.15, xmax=.35, )
+ax.annotate("P3a range", xy=(.21, 1.12))
+
+ax.set_ylabel("Voltage (µV)")
 plt.savefig("../results/figures/fig3.png", dpi=300)
 
 # %%

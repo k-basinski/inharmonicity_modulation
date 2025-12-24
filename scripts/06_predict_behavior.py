@@ -4,7 +4,7 @@ import pandas as pd
 import polars as pl
 from pymer4.models import lmer, compare
 import seaborn as sns
-
+import matplotlib.pyplot as plt
 
 # %%
 # read peak data
@@ -90,3 +90,11 @@ model2.fit()
 model3.fit()
 # %%
 compare(model0, model1, model2, model3)
+
+# %%
+ax = plt.subplot()
+sns.boxplot(data=behavioral_results, x='jitter', y='%', ax=ax)
+ax.set_ylabel("% correct")
+ax.axhline(y=.5, linestyle='--', color='red')
+plt.savefig('../results/figures/sf1.png', dpi=300)
+# %%
